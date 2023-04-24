@@ -1,0 +1,21 @@
+{
+  "template": "https://github.com/tlambert03/pyrepo-cookiecutter",
+  "commit": "700a4fd096dd3dfb2e6c3a4d767b85a1f453a076",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "full_name": "Benjamin Barad",
+      "email": "benjamin.barad@gmail.com",
+      "github_username": "bbarad",
+      "project_name": "ETSegTools",
+      "project_slug": "etsegtools",
+      "project_short_description": "Tools for manipulating multilabel cryoET segmentations",
+      "pypi_username": "bbarad",
+      "_copy_without_render": [
+        ".github/workflows/*"
+      ],
+      "_template": "https://github.com/tlambert03/pyrepo-cookiecutter"
+    }
+  },
+  "directory": null
+}
