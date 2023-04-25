@@ -25,7 +25,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+    "numpy",
+    "scikit-image",
+    "mrcfile",
+    "qvox"
+]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
