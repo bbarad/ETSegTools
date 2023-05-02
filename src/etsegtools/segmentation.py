@@ -8,9 +8,14 @@ class Segmentation:
         """
         Initializes a Segmentation object with a 3D numpy array of integers and a dictionary which connects the ID values to their semantic labels.
         
-        Args:
-        data (numpy.ndarray): 3D numpy array of integers representing the segmentation.
-        label_dict (dict: str->int): Dictionary which connects the ID values to their semantic labels. Label->ID value mapping
+        Parameters
+        ----------
+        data : numpy.ndarray
+            3D numpy array of integers representing the segmentation.
+        label_dict : dict: str->int
+            Dictionary which connects the ID values to their semantic labels. Label->ID value mapping
+        pixsize : float, optional
+            The pixel size of the segmentation, by default 1
         """
         self.data = data
         self.label_dict = label_dict
@@ -20,11 +25,20 @@ class Segmentation:
         """
         Returns a binary array showing values corresponding to a given string label.
         
-        Args:
-        label (str): The string label to generate the binary array for.
+        Parameters
+        ----------
+        label : str
+            The string label to generate the binary array for.
         
-        Returns:
-        numpy.ndarray: Binary array showing values corresponding to the given string label.
+        Returns
+        -------
+        numpy.ndarray
+            Binary array showing values corresponding to the given string label.
+        
+        Raises
+        ------
+        AssertionError
+            If the label is not found among the labels for this segmentation.
         """
         # Get the ID value corresponding to the given label
         assert(label in self.label_dict.keys(), f"{label} not found among labels for this segmentation. The labels are {self.label_dict.keys()}")
@@ -38,11 +52,15 @@ class Segmentation:
         """
         Returns a binary array showing values corresponding to a given int id.
         
-        Args:
-        labelid (int): The integer id to generate the binary array for.
+        Parameters
+        ----------
+        labelid : int
+            The integer id to generate the binary array for.
         
-        Returns:
-        numpy.ndarray: Binary array showing values corresponding to the given string label.
+        Returns
+        -------
+        numpy.ndarray
+            Binary array showing values corresponding to the given string label.
         """
         # Create a binary array with 1 values where the data array matches the label ID and False elsewhere
         binary_array = (self.data == labelid).astype(int)
@@ -53,8 +71,10 @@ class Segmentation:
         """
         Writes the segmentation data to an MRC file with the given file path. The label dictionary is stored in the extended header.
         
-        Args:
-        file_path (str): The file path to write the MRC file to.
+        Parameters
+        ----------
+        file_path : str
+            The file path to write the MRC file to.
         """
         with mrcfile.new(file_path, overwrite=True) as mrc:
             mrc.voxel_size = self.pixsize
@@ -65,8 +85,12 @@ class Segmentation:
         """
         Generates a folder with a folder for each label containing 2D tif each showing a single Z slice of the binary array of that label.
         
-        Args:
-        folder_path (str): The path to the folder to generate.
+        Parameters
+        ----------
+        folder_path : str
+            The path to the folder to generate.
+        also_write_mrc : bool, optional
+            Whether to also write an MRC file containing the segmentation data, by default False
         """
         os.makedirs(folder_path, exist_ok=True)
         if also_write_mrc:
@@ -85,13 +109,21 @@ def read_dragonfly(folder_name: str, labels: List[str], pixsize: float = 1) -> S
     """
     Generates a Segmentation object by combining individual labels into a single quantized numpy 3d array with integer values corresponding to a new label_dict.
     
-    Args:
-    folder_name (str): The name of the folder containing the label folders.
-    labels (List[str]): The list of labels to generate the segmentation for.
+    Parameters
+    ----------
+    folder_name : str
+        The name of the folder containing the label folders.
+    labels : List[str]
+        The list of labels to generate the segmentation for.
+    pixsize : float, optional
+        The pixel size of the segmentation, by default 1
     
-    Returns:
-    Segmentation: The Segmentation object generated from the individual labels.
+    Returns
+    -------
+    Segmentation
+        The Segmentation object generated from the individual labels.
     """
+
     # Initialize an empty dictionary to store the label ID values
     label_dict = {}
     
@@ -127,18 +159,24 @@ def read_mrcfile(file_path: str, label_list: List[str] = None) -> Segmentation:
     """
     Reads an MRC file containing a single 3D array of integer values as well as a list of labels corresponding to integer values, and returns a Segmentation with that data and label list.
     
-    Args:
-    file_path (str): The file path to the MRC file to read.
+    Parameters
+    ----------
+    file_path : str
+        The file path to the MRC file to read.
+    label_list : List[str], optional
+        The list of labels corresponding to integer values, by default None.
     
-    Returns:
-    Segmentation: The Segmentation object generated from the MRC file.
+    Returns
+    -------
+    Segmentation
+        The Segmentation object generated from the MRC file.
     """
     with mrcfile.open(file_path) as mrc:
         # Get the data array from the MRC file
         data = mrc.data
         pixsize = mrc.voxel_size.x.astype(float)
         # Get the label dictionary from the extended header of the MRC file
-        if label_list == None:
+        if label_list is None:
             label_list = mrc.extended_header
         label_dict = {val: i for i,val in enumerate(label_list)}
         
@@ -146,5 +184,4 @@ def read_mrcfile(file_path: str, label_list: List[str] = None) -> Segmentation:
         segmentation = Segmentation(data, label_dict)
         
         return segmentation
-
 
