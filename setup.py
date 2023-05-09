@@ -19,6 +19,6 @@ sys.exit(1)
 # To be removed once GitHub catches up.
 
 setup(  # type: ignore # noqa
-    name="ETSegTools",
+    name="etsegtools",
     install_requires=[],
 )
