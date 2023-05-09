@@ -1,10 +1,16 @@
 import numpy as np
 import mrcfile
 import os
+from typing import List, Tuple
+
 from skimage import io
 
+import qvox.sampling
+import qvox.utils
+from qvox.morphology import grow, shrink, gaussian_smooth
+
 class Segmentation:
-    def __init__(self, data: np.ndarray, label_dict: dict[str, int], pixsize: float = 1):
+    def __init__(self, data: np.ndarray, label_dict: dict[str, int], pixsize: float = 1) -> None:
         """
         Initializes a Segmentation object with a 3D numpy array of integers and a dictionary which connects the ID values to their semantic labels.
         
@@ -19,7 +25,7 @@ class Segmentation:
         """
         self.data = data
         self.label_dict = label_dict
-        self.pixsize = pix_size
+        self.pixsize = pixsize
     
     def get_binary_array(self, label: str) -> np.ndarray:
         """
@@ -42,7 +48,6 @@ class Segmentation:
         """
         # Get the ID value corresponding to the given label
         assert(label in self.label_dict.keys(), f"{label} not found among labels for this segmentation. The labels are {self.label_dict.keys()}")
-
         # Create a binary array with True values where the data array matches the label ID and False elsewhere
         binary_array = (self.data == self.label_dict[label]).astype(int)
         
@@ -67,7 +72,7 @@ class Segmentation:
         
         return binary_array
     
-    def write_mrcfile(self, file_path: str):
+    def write_mrcfile(self, file_path: str) -> None:
         """
         Writes the segmentation data to an MRC file with the given file path. The label dictionary is stored in the extended header.
         
@@ -78,10 +83,10 @@ class Segmentation:
         """
         with mrcfile.new(file_path, overwrite=True) as mrc:
             mrc.voxel_size = self.pixsize
-            mrc.set_data(self.data)
+            mrc.set_data(self.data.astype(float))
             mrc.set_extended_header(self.label_dict.keys())
     
-    def write_dragonfly_tifs(self, folder_path: str, also_write_mrc: bool = False):
+    def write_dragonfly(self, folder_path: str, also_write_mrc: bool = False) -> None:
         """
         Generates a folder with a folder for each label containing 2D tif each showing a single Z slice of the binary array of that label.
         
@@ -97,11 +102,51 @@ class Segmentation:
             self.write_mrcfile(os.path.join(folder_path, "combined.mrc"))
         for label in self.label_dict.keys():
             binary_array = self.get_binary_array(label)
-            label_folder_path = os.path.join(folder_path, label)
-            os.makedirs(label_folder_path, exist_ok=True)
-            for z in range(binary_array.shape[2]):
-                io.imsave(os.path.join(label_folder_path, f"{label}{z:03d}.tif"), binary_array[:, :, z], resolution=(1/self.pixsize, 1/self.pixsize))
+            binary_array = binary_array.astype(np.uint8)
+            io.imsave(os.path.join(folder_path, f"{label}.tiff"), binary_array*255, plugin="tifffile", check_contrast=False)
     
+    def morphological_smooth(self, iter: int = 2) -> None:
+        """
+        Smooths the data by performing successive grow and shrink operations
+        
+        Parameters
+        ----------
+        iterations : int
+            The the number of iterations to grow then shrink. Larger numbers smooth better but can merge adjacent sections, which is undesirable.
+        """
+        new_data = grow(self.data, num_iterations=iter)
+        new_data = shrink(new_data, num_iterations=iter)
+        self.data = new_data
+
+    def gaussian_smooth(self, sigma: float = 1.0, thresh: float = 0.1) -> None:
+        """
+        Smooths the data by performing successive grow and shrink operations
+        
+        Parameters
+        ----------
+        sigma : int
+            The sigma by which to perform gaussian filtering
+        thresh : float
+            The threshold by which to re-binarize.
+        """
+        new_data = gaussian_smooth(self.data, sigma=sigma, threshold=thresh)
+        self.data = new_data
+
+    def rescale(self, new_pixsize: float, thresh: float = 0.5) -> None:
+        """
+        Rescales the data array to the desired pixel spacing using qvox.sampling.rescale
+        
+        Parameters
+        ----------
+        new_pixsize : float
+            The desired pixel spacing for the rescaled data array.
+        thresh : float
+            The threshold by which to re-binarize.
+
+        """
+        self.data = qvox.sampling.rescale(self.data, self.pixsize, new_pixsize, threshold = thresh)
+        self.pixsize = new_pixsize
+
     
 
 
@@ -132,26 +177,19 @@ def read_dragonfly(folder_name: str, labels: List[str], pixsize: float = 1) -> S
     
     # Loop through each label and load the corresponding tifs into a 3D array
     for label in labels:
-        # Load the tifs for the current label into a list
-        tif_list = []
-        for file_name in os.listdir(os.path.join(folder_name, label)):
-            if file_name.endswith(".tif") and file_name.startswith(label):
-                tif_list.append(io.imread(os.path.join(folder_name, label, file_name)))
-        
-        # Combine the individual tifs into a 3D array based on slice number
-        label_array = np.stack(tif_list, axis=2)
-        
+        # Load the 3D tiff into an array
+        label_array = io.imread(os.path.join(folder_name, f"{label}.tiff"))
+    
         # Add the label ID value to the label_dict
-        label_dict[label] = len(label_dict)
+        label_dict[label] = len(label_dict)+1
         
         # Quantize the label array and add it to the list of label arrays
-        label_arrays.append((label_array > 0).astype(int) * label_dict[label])
+        label_arrays.append((label_array > 0).astype(int))
     
     # Combine the individual label arrays into a single 3D array
-    data = np.sum(label_arrays, axis=0)
-    
+    data = qvox.utils.combine_binary_arrays(label_arrays)
     # Create a Segmentation object with the combined 3D array and the label_dict
-    segmentation = Segmentation(data, label_dict)
+    segmentation = Segmentation(data, label_dict, pixsize=pixsize)
     
     return segmentation
 
