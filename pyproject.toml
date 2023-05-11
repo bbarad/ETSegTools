@@ -54,7 +54,7 @@ repository = "https://github.com/bbarad/ETSegTools"
 
 # same as console_scripts entry point
 [project.scripts]
-etsegops = "etsegops.cli"
+etsegops = "etsegops.cli:main_cli"
 
 # Entry points
 # https://peps.python.org/pep-0621/#entry-points
